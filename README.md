@@ -48,10 +48,7 @@ The server will start and listen on `0.0.0.0:12345`.
 
 ### Client
 
-Run the client:
-```bash
-python client.py
-```
+Open the index.html file in your web browser. This will connect to the WebSocket server and allow you to send messages and receive LLM responses directly in the browser.
 
 ### Chat Commands
 
