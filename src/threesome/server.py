@@ -25,7 +25,7 @@ async def handle_client(websocket, path):
         clients.add(websocket)
     try:
         async for message in websocket:
-            print(f"Received: {message}")
+            print(f"Received message from {websocket.remote_address}: {message}")
 
             # Ensure the message is a valid JSON object
             try:
@@ -33,28 +33,34 @@ async def handle_client(websocket, path):
                 sender = data.get("sender", "Unknown")
                 text = data.get("message", "")
 
+                print(f"Message details - Sender: {sender}, Text: {text}")
+
                 if text.lower().startswith("@llm"):
-                    # Broadcast user's question
+                    # Log and broadcast user's question
+                    print(f"User '{sender}' is asking the LLM: {text}")
                     await broadcast({"sender": sender, "message": text})
                     
                     # Query LLM for response
                     llm_response = await query_llm(text[4:].strip())
+                    print(f"LLM response: {llm_response}")
 
                     # Broadcast LLM response
                     await broadcast({"sender": "LLM", "message": llm_response})
                 else:
                     # Broadcast regular messages
+                    print(f"Broadcasting regular message: {text}")
                     await broadcast({"sender": sender, "message": text})
             
             except json.JSONDecodeError:
-                print("Error: Received invalid JSON message.")
+                print(f"Error: Received invalid JSON message from {websocket.remote_address}")
                 continue
 
     except Exception as e:
-        print(f"Error handling message: {e}")
+        print(f"Error handling message from {websocket.remote_address}: {e}")
     finally:
         async with clients_lock:
             clients.remove(websocket)
+            print(f"Client {websocket.remote_address} disconnected")
 
 async def broadcast(message):
     async with clients_lock:
@@ -62,9 +68,10 @@ async def broadcast(message):
         message_json = json.dumps(message)
         for client in list(clients):
             try:
+                print(f"Sending message to {client.remote_address}")
                 await client.send(message_json)
-            except:
-                # If the client fails, remove it from the set
+            except Exception as e:
+                print(f"Failed to send message to {client.remote_address}: {e}")
                 clients.remove(client)
 
 async def query_llm(prompt):
@@ -79,6 +86,7 @@ async def query_llm(prompt):
         )
         return response.choices[0].message.content
     except Exception as e:
+        print(f"Error querying LLM: {e}")
         return f"Error: {str(e)}"
 
 async def main():
