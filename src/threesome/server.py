@@ -2,6 +2,7 @@ import asyncio
 import websockets
 import openai
 import os
+import json
 
 HOST = "0.0.0.0"
 PORT = 12345
@@ -25,19 +26,30 @@ async def handle_client(websocket, path):
     try:
         async for message in websocket:
             print(f"Received: {message}")
+
+            # Ensure the message is a valid JSON object
+            try:
+                data = json.loads(message)
+                sender = data.get("sender", "Unknown")
+                text = data.get("message", "")
+
+                if text.lower().startswith("@llm"):
+                    # Broadcast user's question
+                    await broadcast({"sender": sender, "message": text})
+                    
+                    # Query LLM for response
+                    llm_response = await query_llm(text[4:].strip())
+
+                    # Broadcast LLM response
+                    await broadcast({"sender": "LLM", "message": llm_response})
+                else:
+                    # Broadcast regular messages
+                    await broadcast({"sender": sender, "message": text})
             
-            if message.lower().startswith("@llm"):
-                # Broadcast the user's question to all clients
-                await broadcast(f"Question: {message}")
-                
-                # Query LLM for the response
-                llm_response = await query_llm(message[4:].strip())
-                
-                # Broadcast the LLM response to all clients
-                await broadcast(f"LLM: {llm_response}")
-            else:
-                # Broadcast regular messages to all clients
-                await broadcast(f"Message: {message}")
+            except json.JSONDecodeError:
+                print("Error: Received invalid JSON message.")
+                continue
+
     except Exception as e:
         print(f"Error handling message: {e}")
     finally:
@@ -46,10 +58,11 @@ async def handle_client(websocket, path):
 
 async def broadcast(message):
     async with clients_lock:
-        # Send message to all connected clients
+        # Convert the message to JSON format
+        message_json = json.dumps(message)
         for client in list(clients):
             try:
-                await client.send(message)
+                await client.send(message_json)
             except:
                 # If the client fails, remove it from the set
                 clients.remove(client)
@@ -64,15 +77,14 @@ async def query_llm(prompt):
                 {"role": "user", "content": prompt}
             ]
         )
-        llm_response = response.choices[0].message.content
-        return llm_response
+        return response.choices[0].message.content
     except Exception as e:
         return f"Error: {str(e)}"
 
 async def main():
     # Start the WebSocket server
     server = await websockets.serve(handle_client, HOST, PORT, ping_interval=None)
-    print(f"Server started on ws://{HOST}:{PORT}")
+    print(f"Server started on ws://{HOST}:{PORT} ✅")
     await server.wait_closed()
 
 if __name__ == "__main__":
