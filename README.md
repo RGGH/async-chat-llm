@@ -1,5 +1,8 @@
 # Async Chat Server with OpenAI LLM Integration
 
+![Screenshot from 2025-03-29 17-13-01](https://github.com/user-attachments/assets/12fdd9cf-93e6-4ac5-8adc-e46211927c98)
+
+
 ## Overview
 
 This project is an asynchronous chat server that supports multiple client connections and integrates OpenAI's language model for intelligent responses. The application uses Python's `asyncio` for non-blocking I/O operations and the OpenAI API to provide AI-powered chat interactions.
